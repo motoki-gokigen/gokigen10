@@ -1,7 +1,7 @@
 /* ご機嫌ライフスキル10 — offline support.
    Pages: network first (updates arrive right away), cached copy when offline.
    Icons and fonts: cache first. Bump CACHE when icons or this file change. */
-var CACHE = "gokigen10-v1";
+var CACHE = "gokigen10-v2";
 var CORE = [
   "./",
   "./index.html",
