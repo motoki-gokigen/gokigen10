@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ご機嫌ライフスキル10</title>
+<meta name="description" content="辻秀一氏の10のライフスキルをランダムに1枚ずつ表示し、問いかけで意識を向けるアプリ">
+<meta name="theme-color" content="#EDF1F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10161F" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ご機嫌10">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-screen card deck. Header holds today's 10 marks, one large skill card fills the middle, actions sit at thumb reach. */
+:root{
+  --bg:#EDF1F6;
+  --surface:#FFFFFF;
+  --line:#D4DBE6;
+  --fg:#1B2540;
+  --muted:#5A6580;
+  --think:#2E4C8F;
+  --think-soft:#E2E9F7;
+  --notice:#9A6200;
+  --notice-soft:#F7EBCF;
+  --on-think:#FFFFFF;
+  --scrim:rgba(16,22,31,.38);
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#10161F; --surface:#1A2230; --line:#2C3749; --fg:#E6EBF3; --muted:#9AA5BB;
+    --think:#93AEEB; --think-soft:#22304B; --notice:#EDB65A; --notice-soft:#3A2E17;
+    --on-think:#10161F; --scrim:rgba(0,0,0,.55); color-scheme:dark;
+  }
+}
+
+html{height:100%;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+
+.app{height:100%;max-width:560px;margin:0 auto;
+  padding-left:calc(16px + env(safe-area-inset-left,0px));
+  padding-right:calc(16px + env(safe-area-inset-right,0px));
+  padding-top:calc(12px + env(safe-area-inset-top,0px));
+  padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.04em}
+.today{display:flex;align-items:center;gap:10px}
+.count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.count b{color:var(--fg);font-weight:700}
+.dots{display:flex;gap:5px}
+.dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line);background:transparent;transition:background .25s,border-color .25s}
+.dot.done.notice{background:var(--notice);border-color:var(--notice)}
+.dot.done.think{background:var(--think);border-color:var(--think)}
+.dot.now{outline:2px solid var(--fg);outline-offset:2px}
+
+/* card */
+.card{flex:1;min-height:0;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:24px 22px;display:flex;flex-direction:column;justify-content:center;gap:22px;touch-action:pan-y}
+.card.enter{animation:enter .38s cubic-bezier(.2,.7,.2,1)}
+@keyframes enter{from{opacity:.15;transform:translateX(18px)}to{opacity:1;transform:none}}
+.meta{display:flex;align-items:center;gap:10px}
+.chip{font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 10px 3px 12px;border-radius:999px}
+.chip.notice{background:var(--notice-soft);color:var(--notice)}
+.chip.think{background:var(--think-soft);color:var(--think)}
+.no{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:.06em}
+.mark{margin-left:auto;font-size:12px;color:var(--muted)}
+.skill{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(1.65rem,7.2vw,2.5rem);line-height:1.35;text-wrap:balance}
+.skill .tail{display:block}
+.skill .tail.notice{color:var(--notice)}
+.skill .tail.think{color:var(--think)}
+.ask{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--line);padding-top:18px}
+.q{margin:0;font-family:var(--font-display);font-weight:500;font-size:clamp(1.1rem,4.6vw,1.35rem);line-height:1.55}
+.hint{margin:0;color:var(--muted);font-size:14px}
+
+/* auto progress */
+.progress{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.progress span{display:block;height:100%;width:0;background:var(--think)}
+[hidden]{display:none!important}
+
+/* actions */
+.actions{display:grid;grid-template-columns:1fr 1.6fr;gap:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border-radius:16px;padding:15px 12px;font-size:16px;font-weight:700;border:1.5px solid var(--line);background:var(--surface);transition:transform .12s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--think);border-color:var(--think);color:var(--on-think)}
+.btn:focus-visible,.seg button:focus-visible,.link:focus-visible,.row:focus-visible{outline:3px solid var(--notice);outline-offset:2px}
+
+.sub{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.auto{display:flex;align-items:center;gap:8px}
+.auto-label{font-size:13px;color:var(--muted);white-space:nowrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 11px;font-size:13px;color:var(--muted)}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--think-soft);color:var(--think);font-weight:700}
+.links{display:flex;gap:6px}
+.link{border:0;background:transparent;font-size:13px;color:var(--think);font-weight:700;padding:7px 4px;text-decoration:underline;text-underline-offset:3px}
+
+/* install banner */
+.install{display:flex;align-items:center;gap:12px;background:var(--think-soft);color:var(--fg);border-radius:14px;padding:10px 12px}
+.install p{margin:0;flex:1;min-width:0;font-size:13px;line-height:1.5}
+.install .btn{padding:9px 14px;font-size:14px;border-radius:12px}
+
+/* list sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim)}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:80%;overflow:auto;background:var(--surface);border-radius:22px 22px 0 0;
+  padding:18px calc(16px + env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
+.sheet-in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.sheet-head h2{margin:0;font-family:var(--font-display);font-size:17px}
+.row{display:grid;grid-template-columns:2.2em 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;border:0;border-radius:12px;background:transparent;padding:10px 8px}
+.row:active{background:var(--bg)}
+.row .rn{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .rt{min-width:0;font-weight:500}
+.row .rt .notice{color:var(--notice);font-weight:700}
+.row .rt .think{color:var(--think);font-weight:700}
+.row .rd{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line)}
+.row .rd.done.notice{background:var(--notice);border-color:var(--notice)}
+.row .rd.done.think{background:var(--think);border-color:var(--think)}
+.about{margin-top:10px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.about h3{margin:0;font-size:14px}
+.note{margin:0;font-size:12.5px;color:var(--muted);line-height:1.65}
+
+@media (prefers-reduced-motion: reduce){
+  .card.enter{animation:none}
+  .dot,.btn{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">ご機嫌ライフスキル</div>
+    <div class="today">
+      <span class="count" id="count">今日 <b>0</b>/10</span>
+      <div class="dots" id="dots" aria-label="今日意識を向けたスキル"></div>
+    </div>
+  </header>
+
+  <div class="install" id="install" hidden>
+    <p id="install-text">ホーム画面にアプリとして追加できます。</p>
+    <button class="btn primary" id="install-btn" type="button">追加する</button>
+    <button class="link" id="install-close" type="button" aria-label="閉じる">閉じる</button>
+  </div>
+
+  <article class="card" id="card" aria-live="polite">
+    <div class="meta">
+      <span class="chip think" id="chip">考える</span>
+      <span class="no" id="no">No.3</span>
+      <span class="mark" id="mark"></span>
+    </div>
+    <h1 class="skill" id="skill">今ここ自分と<span class="tail think">考える</span></h1>
+    <div class="ask">
+      <p class="q" id="q">意識はいま、過去・未来・他人・結果のどこにある？</p>
+      <p class="hint" id="hint">今・ここ・自分に戻れば、心の主導権が戻ってくる。</p>
+    </div>
+  </article>
+
+  <div class="progress" id="progress" hidden><span id="bar"></span></div>
+
+  <div class="actions">
+    <button class="btn" id="next" type="button">次へ</button>
+    <button class="btn primary" id="done" type="button">意識を向けた</button>
+  </div>
+
+  <div class="sub">
+    <div class="auto">
+      <span class="auto-label">自動切替</span>
+      <div class="seg" id="seg" role="group" aria-label="自動切替の間隔">
+        <button type="button" id="auto-0" data-sec="0" aria-pressed="true">オフ</button>
+        <button type="button" id="auto-30" data-sec="30" aria-pressed="false">30秒</button>
+        <button type="button" id="auto-60" data-sec="60" aria-pressed="false">1分</button>
+        <button type="button" id="auto-180" data-sec="180" aria-pressed="false">3分</button>
+      </div>
+    </div>
+    <button class="link" id="open-list" type="button">一覧・使い方</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" hidden aria-label="10項目の一覧と使い方">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2>10のライフスキル</h2>
+      <button class="link" id="close-list" type="button">閉じる</button>
+    </div>
+    <div id="rows"></div>
+    <p class="note">タップでその項目を表示します。右の印は今日「意識を向けた」もので、日付が変わるとリセットされます。</p>
+    <div class="about">
+      <h3>使い方</h3>
+      <p class="note">「次へ」かカードの横スワイプで次の項目へ。10項目が一巡するまで同じ項目は出ません。「自動切替」を選ぶと、開いている間は一定の間隔で切り替わります。記録はこのスマホの中だけに保存され、ほかの人には見えません。</p>
+      <h3>ホーム画面に置くには</h3>
+      <p class="note">Android：Chromeのメニュー（︙）から「アプリをインストール」または「ホーム画面に追加」。<br>iPhone：Safariの共有ボタンから「ホーム画面に追加」。</p>
+      <p class="note">スポーツドクター辻秀一氏が提唱するライフスキルをもとに作成しています。</p>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  var SKILLS = [
+    {n:1, type:"notice", head:"自分の感情に", tail:"気づく",
+     q:"いま、どんな感情がある？", hint:"良い・悪いをつけず、ただ気づくだけでいい。"},
+    {n:2, type:"think", head:"自分のご機嫌の価値を", tail:"考える",
+     q:"ご機嫌でいると、今日なにが良くなる？", hint:"価値を知っているから、ご機嫌を手放さない。"},
+    {n:3, type:"think", head:"今ここ自分と", tail:"考える",
+     q:"意識はいま、過去・未来・他人・結果のどこにある？", hint:"今・ここ・自分に戻れば、心の主導権が戻ってくる。"},
+    {n:4, type:"think", head:"一生懸命の自分が楽しいと", tail:"考える",
+     q:"結果を抜きにして、いま一生懸命になれていることは？", hint:"楽しさは結果ではなく、やっている自分の中にある。"},
+    {n:5, type:"think", head:"自己ツールを大切にすると", tail:"考える",
+     q:"いまの表情・態度・言葉は、自分をご機嫌にしている？", hint:"口角・姿勢・言葉を、人のためでなく自分のために選ぶ。"},
+    {n:6, type:"think", head:"自分の為に与えると", tail:"考える",
+     q:"今日、見返りなしで誰に何を渡せる？", hint:"期待より応援。与えると、自分の質が上がる。"},
+    {n:7, type:"think", head:"自分の好きな事を", tail:"考える",
+     q:"いま思い浮かぶ「好き」をひとつ。", hint:"好きに理由はいらない。内側から湧くものを味わう。"},
+    {n:8, type:"think", head:"自分の目的を", tail:"考える",
+     q:"これは、何のためにやっている？", hint:"目標は外の結果、目的は内側の理由。"},
+    {n:9, type:"notice", head:"意味付けした自分に", tail:"気づく",
+     q:"その出来事に、どんな意味を付けている？", hint:"書き換えなくていい。付けているのは自分だと気づくだけ。"},
+    {n:10, type:"think", head:"自分のあり方を", tail:"考える",
+     q:"どんな自分で、これをやりたい？", hint:"doingの前にbeing。ご機嫌なあり方でやるべきことをやる。"}
+  ];
+  var TYPE_LABEL = {notice:"気づく", think:"考える"};
+  var KEY = "gokigen-lifeskill10-v1";
+
+  function $(id){ return document.getElementById(id); }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+  function load(){
+    try{ var raw=localStorage.getItem(KEY); if(!raw) return {}; var o=JSON.parse(raw); return (o && typeof o==="object") ? o : {}; }
+    catch(e){ return {}; }
+  }
+  var store = load();
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+  function doneList(){
+    if(store.date !== todayStr()){ store.date = todayStr(); store.done = []; save(); }
+    if(!Array.isArray(store.done)) store.done = [];
+    return store.done;
+  }
+  function find(n){ for(var i=0;i<SKILLS.length;i++){ if(SKILLS[i].n===n) return SKILLS[i]; } return SKILLS[0]; }
+
+  /* shuffle bag: all 10 appear before any repeats, never the same one twice in a row */
+  var bag = [];
+  var current = null;
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function draw(){
+    if(!bag.length){
+      bag = shuffle(SKILLS.map(function(s){ return s.n; }));
+      if(current && bag[bag.length-1]===current.n){ var t=bag[0]; bag[0]=bag[bag.length-1]; bag[bag.length-1]=t; }
+    }
+    return find(bag.pop());
+  }
+
+  function renderDots(){
+    var done = doneList();
+    var html = "";
+    SKILLS.forEach(function(s){
+      var isDone = done.indexOf(s.n) !== -1;
+      var cls = "dot " + s.type + (isDone ? " done" : "") + (current && current.n===s.n ? " now" : "");
+      html += '<span class="'+cls+'" title="No.'+s.n+' '+s.head+s.tail+'"></span>';
+    });
+    $("dots").innerHTML = html;
+    $("count").innerHTML = '今日 <b>'+done.length+'</b>/10';
+  }
+
+  function renderRows(){
+    var done = doneList();
+    var html = "";
+    SKILLS.forEach(function(s){
+      var isDone = done.indexOf(s.n) !== -1;
+      html += '<button class="row" type="button" data-n="'+s.n+'">'+
+        '<span class="rn">'+(s.n<10?"0":"")+s.n+'</span>'+
+        '<span class="rt">'+s.head+'<span class="'+s.type+'">'+s.tail+'</span></span>'+
+        '<span class="rd '+s.type+(isDone?' done':'')+'" aria-label="'+(isDone?'今日済み':'まだ')+'"></span>'+
+      '</button>';
+    });
+    $("rows").innerHTML = html;
+  }
+
+  function show(skill, animate){
+    current = skill;
+    $("chip").textContent = TYPE_LABEL[skill.type];
+    $("chip").className = "chip " + skill.type;
+    $("no").textContent = "No." + skill.n;
+    $("skill").innerHTML = skill.head + '<span class="tail '+skill.type+'">'+skill.tail+'</span>';
+    $("q").textContent = skill.q;
+    $("hint").textContent = skill.hint;
+    var isDone = doneList().indexOf(skill.n) !== -1;
+    $("mark").textContent = isDone ? "今日 意識済み" : "";
+    $("done").textContent = isDone ? "もう一度 意識を向けた" : "意識を向けた";
+    renderDots();
+    if(animate){
+      var c = $("card");
+      c.classList.remove("enter"); void c.offsetWidth; c.classList.add("enter");
+    }
+    resetTimer();
+  }
+
+  function next(){ show(draw(), true); }
+  function markDone(){
+    var done = doneList();
+    if(current && done.indexOf(current.n) === -1){ done.push(current.n); save(); }
+    renderDots();
+    setTimeout(next, 180);
+  }
+
+  /* auto rotation */
+  var autoSec = [0,30,60,180].indexOf(store.auto) !== -1 ? store.auto : 0;
+  var startedAt = Date.now();
+  var pausedLeft = null;
+  var wakeLock = null;
+  function resetTimer(){ startedAt = Date.now(); pausedLeft = null; $("bar").style.width = "0%"; }
+  function setAuto(sec){
+    autoSec = sec; store.auto = sec; save();
+    Array.prototype.forEach.call(document.querySelectorAll("#seg button"), function(b){
+      b.setAttribute("aria-pressed", String(Number(b.getAttribute("data-sec"))===sec));
+    });
+    $("progress").hidden = sec === 0;
+    resetTimer();
+    if(sec > 0) requestWake(); else releaseWake();
+  }
+  function requestWake(){
+    try{
+      if(navigator.wakeLock && navigator.wakeLock.request){
+        navigator.wakeLock.request("screen").then(function(l){ wakeLock = l; }).catch(function(){});
+      }
+    }catch(e){}
+  }
+  function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){} }
+  setInterval(function(){
+    if(!autoSec || document.hidden) return;
+    var elapsed = (Date.now() - startedAt) / 1000;
+    var ratio = Math.min(elapsed / autoSec, 1);
+    $("bar").style.width = (ratio*100).toFixed(1) + "%";
+    if(elapsed >= autoSec) next();
+  }, 200);
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){ pausedLeft = Date.now() - startedAt; }
+    else{
+      if(pausedLeft !== null){ startedAt = Date.now() - pausedLeft; pausedLeft = null; }
+      if(autoSec > 0) requestWake();
+      renderDots();
+    }
+  });
+
+  /* list sheet */
+  function openList(){ renderRows(); $("scrim").hidden = false; $("sheet").hidden = false; }
+  function closeList(){ $("scrim").hidden = true; $("sheet").hidden = true; }
+
+  /* events */
+  $("next").addEventListener("click", next);
+  $("done").addEventListener("click", markDone);
+  $("seg").addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    setAuto(Number(b.getAttribute("data-sec")));
+  });
+  $("open-list").addEventListener("click", openList);
+  $("close-list").addEventListener("click", closeList);
+  $("scrim").addEventListener("click", closeList);
+  $("rows").addEventListener("click", function(e){
+    var r = e.target.closest(".row"); if(!r) return;
+    closeList(); show(find(Number(r.getAttribute("data-n"))), true);
+  });
+  document.addEventListener("keydown", function(e){
+    if(!$("sheet").hidden){ if(e.key === "Escape") closeList(); return; }
+    if(e.key === "ArrowRight") next();
+  });
+  var sx = null, sy = null;
+  $("card").addEventListener("touchstart", function(e){ var t=e.touches[0]; sx=t.clientX; sy=t.clientY; }, {passive:true});
+  $("card").addEventListener("touchend", function(e){
+    if(sx === null) return;
+    var t = e.changedTouches[0]; var dx = t.clientX - sx, dy = t.clientY - sy;
+    sx = sy = null;
+    if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)*1.5) next();
+  }, {passive:true});
+
+  /* install to home screen */
+  var deferredPrompt = null;
+  var standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+  var dismissed = store.installDismissed === true;
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    if(!standalone && !dismissed){ $("install-text").textContent = "ホーム画面にアプリとして追加できます。"; $("install-btn").hidden = false; $("install").hidden = false; }
+  });
+  window.addEventListener("appinstalled", function(){ $("install").hidden = true; deferredPrompt = null; });
+  $("install-btn").addEventListener("click", function(){
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(){ deferredPrompt = null; $("install").hidden = true; }).catch(function(){});
+  });
+  $("install-close").addEventListener("click", function(){ $("install").hidden = true; store.installDismissed = true; save(); });
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS && !standalone && !dismissed){
+    $("install-text").textContent = "Safariの共有ボタン→「ホーム画面に追加」でアプリとして使えます。";
+    $("install-btn").hidden = true;
+    $("install").hidden = false;
+  }
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+  }
+
+  setAuto(autoSec);
+  show(draw(), false);
+})();
+</script>
+</body>
+</html>
